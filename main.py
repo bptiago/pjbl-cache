@@ -67,73 +67,67 @@ class CacheSimples:
         self.bloco = -1
         self.modif = False
 
+    def copiar_bloco_cache_para_ram(self, bloco_ender):
+        endereco_inicio_bloco = bloco_ender * self.tam_cache
+        endereco_fim_bloco = endereco_inicio_bloco + self.tam_cache
+
+        acc = 0
+        for i in range(endereco_inicio_bloco, endereco_fim_bloco):
+            self.ram.write(i, self.dados[acc])
+            acc += 1
+
+    def atualizar_cache_com_novo_bloco(self, bloco_ender):
+        endereco_inicio_bloco = bloco_ender * self.tam_cache
+        endereco_fim_bloco = endereco_inicio_bloco + self.tam_cache
+
+        acc = 0
+        for i in range(endereco_inicio_bloco, endereco_fim_bloco):
+            self.dados[acc] = self.ram.read(i)
+            acc += 1
+
     def read(self, ender):
         bloco_ender = int(ender / self.tam_cache)
+
         if bloco_ender == self.bloco:
             print(f"Cache HIT(read): {ender}")
             pos = ender - self.bloco * self.tam_cache
             return self.dados[pos]
         else:
             print(f"Cache MISS(read): {ender}")
-            inicio = bloco_ender * self.tam_cache
-
             if self.modif:
-                # Copia a cache modificada para a ram
-                acc = 0
-                for i in range(inicio, inicio + self.tam_cache):
-                    self.ram.write(i, self.dados[acc])
-                    acc += 1
+                self.copiar_bloco_cache_para_ram(bloco_ender)
 
             # Atualizar bloco RAM a ser lido
-
-            acc = 0
-            for i in range(inicio, inicio + self.tam_cache):
-                self.dados[acc] = self.ram.read(i)
-                acc += 1
+            self.atualizar_cache_com_novo_bloco(bloco_ender)
 
             pos = ender - bloco_ender * self.tam_cache
-
-            self.modif = False
-            self.bloco = bloco_ender
-            #traz da ram o bloco contendo o ender
+            self.modif = False # Reseta a flag de modificação
+            self.bloco = bloco_ender # Atualiza com o número do novo bloco pego da memória RAM
             return self.dados[pos]
 
     def write(self, ender, val):
         bloco_ender = int(ender / self.tam_cache)
+
         if bloco_ender == self.bloco:
             print(f"cache HIT(write): {ender}")
             pos = ender - self.bloco * self.tam_cache
-            # Escreve na memória cache o valor
-            self.dados[pos] = val
+            self.dados[pos] = val # Escreve na memória cache o valor
         else:
             print(f"Cache MISS(write): {ender}")
-            inicio = bloco_ender * self.tam_cache
-
-            # Copia a cache modificada para a ram
             if self.modif:
-                acc = 0
-                for i in range(inicio, inicio + self.tam_cache):
-                    self.ram.write(i, self.dados[acc])
-                    acc += 1
+                self.copiar_bloco_cache_para_ram(bloco_ender)
 
-            # Atualizar cache com o bloco RAM a ser lido
-            acc = 0
-            for i in range(inicio, inicio + self.tam_cache):
-                self.dados[acc] = self.ram.read(i)
-                acc += 1
+            self.atualizar_cache_com_novo_bloco(bloco_ender)
 
             pos = ender - bloco_ender * self.tam_cache
-
-            self.bloco = bloco_ender
-            # Escreve na memória cache o valor
-            self.dados[pos] = val
+            self.dados[pos] = val # Escreve na memória cache o valor
+            self.bloco = bloco_ender # Atualiza com o número do novo bloco pego da memória RAM
 
         self.modif = True
 
 # Programa Principal
 
 try:
-    # io = IO(sys.stdin, sys.stdout)
     io = IO()
     ram = RAM(7)
     cache = CacheSimples(3, ram)  # tamanho da cache = 8
