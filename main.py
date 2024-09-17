@@ -1,6 +1,7 @@
 # Aluno: Tiago Bisolo Prestes
 
 import sys
+import math
 
 class IO:
     def output(self, s):
@@ -58,6 +59,46 @@ class CPU:
             self.io.output(f"{self.A} -> {self.C}\n")
             self.C += 1
             self.A += 1
+
+class Cache:
+    def __init__(self, tamanho_cache, num_cache_lines, ram):
+        self.ram = ram
+        self.tamanho_cache = 2 ** tamanho_cache
+        self.num_cache_lines = num_cache_lines
+        self.tamanho_cache_line = int(tamanho_cache / num_cache_lines).bit_count() # w
+        self.cache_lines = self.criar_cache_lines()
+
+    def criar_cache_lines(self):
+        arr = []
+        for i in range(self.num_cache_lines):
+            cache_line = CacheLine(self.tamanho_cache_line, i)
+            endereco_inicial_bloco = i * self.tamanho_cache_line
+            endereco_final_bloco = endereco_inicial_bloco + self.tamanho_cache_line
+
+            # Faz o load do bloco da RAM dentro da cache line
+            count = 0 #gambiarra
+            for ender in range(endereco_inicial_bloco, endereco_final_bloco):
+                cache_line.dados[count] = self.ram.memoria[ender]
+                count += 1
+
+            arr.append(cache_line)
+
+        return arr
+
+    # TODO
+    def read(self, endereco):
+        # usar binário no endereco e descobrir r,w,t
+        pass
+
+    # TODO
+    def write(self):
+        pass
+
+class CacheLine:
+    def __init__(self, tamanho_cache_line, tag):
+        self.tamanho_cache_line = tamanho_cache_line
+        self.tag = tag
+        self.dados = [0] * self.tamanho_cache_line
 
 class CacheSimples:
     def __init__(self, kc, ram):
