@@ -61,11 +61,11 @@ class CPU:
             self.A += 1
 
 class Cache:
-    def __init__(self, tamanho_cache, num_cache_lines, ram):
+    def __init__(self, tamanho_cache, tamanho_cache_line, ram):
         self.ram = ram
         self.tamanho_cache = 2 ** tamanho_cache
-        self.num_cache_lines = num_cache_lines
-        self.tamanho_cache_line = int(tamanho_cache / num_cache_lines).bit_count() # w
+        self.tamanho_cache_line = 2 ** tamanho_cache_line # w
+        self.num_cache_lines = int(self.tamanho_cache / self.tamanho_cache_line) # r
         self.cache_lines = self.criar_cache_lines()
 
     def criar_cache_lines(self):
@@ -169,14 +169,24 @@ class CacheSimples:
 # Programa Principal
 
 try:
+    # io = IO()
+    # ram = RAM(7)
+    # cache = CacheSimples(3, ram)  # tamanho da cache = 8
+    # cpu = CPU(cache, io)
+    #
+    # inicio = 10
+    # ram.write(inicio, 118)
+    # ram.write(inicio + 1, 130)
+    # cpu.run(inicio)
+
     io = IO()
-    ram = RAM(7)
-    cache = CacheSimples(3, ram)  # tamanho da cache = 8
-    cpu = CPU(cache, io)
-    
-    inicio = 10
-    ram.write(inicio, 118)
-    ram.write(inicio + 1, 130)
-    cpu.run(inicio)
+    ram = RAM(12)  # 4K de RAM (2**12)
+    cache = Cache(7, 4, ram)  # total cache = 128 (2**7), cacheline = 16 palavras (2**4), numero cache lines = 8
+    # cpu = CPU(cache, io)
+    #
+    # inicio = 0
+    # ram.write(inicio, 110)
+    # ram.write(inicio + 1, 130)
+    # cpu.run(inicio)
 except EnderecoInvalido as e:
     print("Endereço inválido:", e.ender, file=sys.stderr)
