@@ -66,127 +66,89 @@ class Cache:
         self.tamanho_cache = 2 ** tamanho_cache
         self.tamanho_cache_line = 2 ** tamanho_cache_line # w
         self.num_cache_lines = int(self.tamanho_cache / self.tamanho_cache_line) # r
-        self.cache_lines = self.criar_cache_lines()
+        self.cache_lines = [CacheLine(self.tamanho_cache_line) for _ in range(self.num_cache_lines)]
 
-    def criar_cache_lines(self):
-        arr = []
-        for i in range(self.num_cache_lines):
-            cache_line = CacheLine(self.tamanho_cache_line, i)
-            endereco_inicial_bloco = i * self.tamanho_cache_line
-            endereco_final_bloco = endereco_inicial_bloco + self.tamanho_cache_line
+        self.num_bits_w = tamanho_cache_line
+        self.num_bits_r = int(math.log(self.num_cache_lines, 2))
 
-            # Faz o load do bloco da RAM dentro da cache line
-            count = 0 #gambiarra
-            for ender in range(endereco_inicial_bloco, endereco_final_bloco):
-                cache_line.dados[count] = self.ram.memoria[ender]
-                count += 1
+    def carregar_bloco_da_ram(self, s, r):
+        cache_line = self.cache_lines[r]
+        endereco_inicial_bloco = s * self.tamanho_cache_line
+        for i in range(self.tamanho_cache_line):
+            cache_line.dados[i] = self.ram.read(endereco_inicial_bloco + i)
 
-            arr.append(cache_line)
+    def copiar_bloco_para_ram(self, s, r):
+        cache_line = self.cache_lines[r]
+        endereco_inicial_bloco = s * self.tamanho_cache_line
+        for i in range(self.tamanho_cache_line):
+            self.ram.write(endereco_inicial_bloco + i, cache_line.dados[i])
 
-        return arr
-
-    # TODO
     def read(self, endereco):
-        # usar binário no endereco e descobrir r,w,t
+        # Descobrir r,w,t,s usando bitwise
+        w = endereco & self.gerar_mascara_bit(self.num_bits_w) #
+        r = (endereco >> self.num_bits_w) & self.gerar_mascara_bit(self.num_bits_r)
+        t = (endereco >> self.num_bits_w + self.num_bits_r)
+        s = endereco >> self.num_bits_w
+
+        cache_line = self.cache_lines[r]
+
+        if cache_line.tag == t:
+            print(f"Cache hit (read): {endereco}")
+        else:
+            print(f"Cache miss (read): {endereco}")
+            if cache_line.modificada:
+                self.copiar_bloco_para_ram(s, r)
+
+            self.carregar_bloco_da_ram(s, r)
+            cache_line.tag = t
+            cache_line.modificada = False
+
+        return cache_line.dados[w]
+
+    def write(self, endereco, valor):
+        # Descobrir r,w,t,s usando bitwise
+        w = endereco & self.gerar_mascara_bit(self.num_bits_w)  #
+        r = (endereco >> self.num_bits_w) & self.gerar_mascara_bit(self.num_bits_r)
+        t = (endereco >> self.num_bits_w + self.num_bits_r)
+        s = endereco >> self.num_bits_w
+
+        cache_line = self.cache_lines[r]
+
+        if cache_line.tag == t:
+            print(f"Cache hit (write): {endereco}")
+        else:
+            print(f"Cache miss (write): {endereco}")
+            if cache_line.modificada:
+                self.copiar_bloco_para_ram(s, r)
+
+            self.carregar_bloco_da_ram(s, r)
+            cache_line.tag = t
+            cache_line.modificada = False
+
+        cache_line.dados[w] = valor
+
         pass
 
-    # TODO
-    def write(self):
-        pass
+    def gerar_mascara_bit(self, num_bits):
+        return (1 << num_bits) - 1
 
 class CacheLine:
-    def __init__(self, tamanho_cache_line, tag):
+    def __init__(self, tamanho_cache_line):
         self.tamanho_cache_line = tamanho_cache_line
-        self.tag = tag
+        self.tag = None
         self.dados = [0] * self.tamanho_cache_line
-
-class CacheSimples:
-    def __init__(self, kc, ram):
-        self.ram = ram
-        self.tam_cache = 2 ** kc
-        self.dados = [0] * self.tam_cache
-        self.bloco = -1
-        self.modif = False
-
-    def copiar_bloco_cache_para_ram(self, bloco_ender):
-        endereco_inicio_bloco = bloco_ender * self.tam_cache
-        endereco_fim_bloco = endereco_inicio_bloco + self.tam_cache
-
-        acc = 0
-        for i in range(endereco_inicio_bloco, endereco_fim_bloco):
-            self.ram.write(i, self.dados[acc])
-            acc += 1
-
-    def atualizar_cache_com_novo_bloco(self, bloco_ender):
-        endereco_inicio_bloco = bloco_ender * self.tam_cache
-        endereco_fim_bloco = endereco_inicio_bloco + self.tam_cache
-
-        acc = 0
-        for i in range(endereco_inicio_bloco, endereco_fim_bloco):
-            self.dados[acc] = self.ram.read(i)
-            acc += 1
-
-    def read(self, ender):
-        bloco_ender = int(ender / self.tam_cache)
-
-        if bloco_ender == self.bloco:
-            print(f"Cache HIT(read): {ender}")
-            pos = ender - self.bloco * self.tam_cache
-            return self.dados[pos]
-        else:
-            print(f"Cache MISS(read): {ender}")
-            if self.modif:
-                self.copiar_bloco_cache_para_ram(bloco_ender)
-
-            # Atualizar bloco RAM a ser lido
-            self.atualizar_cache_com_novo_bloco(bloco_ender)
-
-            pos = ender - bloco_ender * self.tam_cache
-            self.modif = False # Reseta a flag de modificação
-            self.bloco = bloco_ender # Atualiza com o número do novo bloco pego da memória RAM
-            return self.dados[pos]
-
-    def write(self, ender, val):
-        bloco_ender = int(ender / self.tam_cache)
-
-        if bloco_ender == self.bloco:
-            print(f"cache HIT(write): {ender}")
-            pos = ender - self.bloco * self.tam_cache
-            self.dados[pos] = val # Escreve na memória cache o valor
-        else:
-            print(f"Cache MISS(write): {ender}")
-            if self.modif:
-                self.copiar_bloco_cache_para_ram(bloco_ender)
-
-            self.atualizar_cache_com_novo_bloco(bloco_ender)
-
-            pos = ender - bloco_ender * self.tam_cache
-            self.dados[pos] = val # Escreve na memória cache o valor
-            self.bloco = bloco_ender # Atualiza com o número do novo bloco pego da memória RAM
-
-        self.modif = True
+        self.modificada = False
 
 # Programa Principal
 
 try:
-    # io = IO()
-    # ram = RAM(7)
-    # cache = CacheSimples(3, ram)  # tamanho da cache = 8
-    # cpu = CPU(cache, io)
-    #
-    # inicio = 10
-    # ram.write(inicio, 118)
-    # ram.write(inicio + 1, 130)
-    # cpu.run(inicio)
-
     io = IO()
     ram = RAM(12)  # 4K de RAM (2**12)
     cache = Cache(7, 4, ram)  # total cache = 128 (2**7), cacheline = 16 palavras (2**4), numero cache lines = 8
-    # cpu = CPU(cache, io)
-    #
-    # inicio = 0
-    # ram.write(inicio, 110)
-    # ram.write(inicio + 1, 130)
-    # cpu.run(inicio)
+    cpu = CPU(cache, io)
+    inicio = 0
+    ram.write(inicio, 110)
+    ram.write(inicio + 1, 130)
+    cpu.run(inicio)
 except EnderecoInvalido as e:
     print("Endereço inválido:", e.ender, file=sys.stderr)
