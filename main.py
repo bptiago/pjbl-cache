@@ -126,8 +126,8 @@ class Cache:
             cache_line.modificada = False
 
         cache_line.dados[w] = valor
+        cache_line.modificada = True
 
-        pass
 
     def gerar_mascara_bit(self, num_bits):
         return (1 << num_bits) - 1
