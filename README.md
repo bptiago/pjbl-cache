@@ -1,2 +1,2 @@
 # pjbl-cache
-Simultation of a computer cache read/write operations.
+Python program simulating a computer cache read/write operations.
